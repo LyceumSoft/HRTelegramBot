@@ -1,36 +1,20 @@
-import nltk
-import string
-import numpy as np
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
-
-# Загрузка предобученных данных
+import torch
+from transformers import BertTokenizer, BertForQuestionAnswering
+model_name = "bert-base-uncased"
+tokenizer = BertTokenizer.from_pretrained(model_name)
+model = BertForQuestionAnswering.from_pretrained(model_name)
 with open("base.md", "r", encoding="utf-8") as file:
     text = file.read()
-sentences = nltk.sent_tokenize(text)
-
-def preprocess_text(text):
-    text = text.lower() 
-    text = "".join([char for char in text if char not in string.punctuation])
-    return text
-
-# Предобработка и TF-IDF векторизация текста
-vectorizer = TfidfVectorizer(tokenizer=nltk.word_tokenize, stop_words="english")
-tfidf_matrix = vectorizer.fit_transform([preprocess_text(sentence) for sentence in sentences])
-
-# Функция для получения ответа с более длинным текстом
-def get_response(question):
-    question = preprocess_text(question)
-    question_vec = vectorizer.transform([question])
-    similarities = cosine_similarity(question_vec, tfidf_matrix)
-    most_similar_sentence_indices = np.argsort(similarities[0])[-3:][::-1]  # Выберем три наиболее похожих предложения
-    response = "\n".join([sentences[idx] for idx in most_similar_sentence_indices])
-    return response
 
 while True:
-    user_question = input("Ваш вопрос (или 'exit' для выхода): ")
+    user_question = input("Задайте ваш вопрос (или 'exit' для выхода): ")
     if user_question.lower() == "exit":
         break
-    response = get_response(user_question)
+    inputs = tokenizer(user_question, text, return_tensors="pt", max_length=512, truncation="longest_first")
+    start_scores, end_scores = model(**inputs)
+    answer_start = torch.argmax(start_scores)
+    answer_end = torch.argmax(end_scores) + 1
+    answer = tokenizer.convert_tokens_to_string(tokenizer.convert_ids_to_tokens(inputs["input_ids"][0][answer_start:answer_end]))
+
     print("Ответ:")
-    print(response)
+    print(answer)
