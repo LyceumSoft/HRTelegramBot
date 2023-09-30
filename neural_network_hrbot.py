@@ -1,10 +1,11 @@
 import re
 import random
-with open("base.txt", "r", encoding="utf-8") as file:
-    data = file.read()
+import telegram
+from telegram.ext import Updater, MessageHandler, Filters
 
-data = re.sub(r"[^А-Яа-я\s]", "", data)
-sentences = data.split("\n")
+bot_token = '6602521080:AAHzVn3CtxPzxBR7QEI8mneNJWfibhnqX7c'
+
+bot = telegram.Bot(token=bot_token)
 
 keyword_responses = {
     "привет": ["Привет!", "Здравствуйте!", "Добрый день!"],
@@ -30,9 +31,6 @@ keyword_responses = {
     "зона ответственност": ["Зона ответственности - это область, за которую отвечает Роль.", "Домен закрепляется за Ролью или Кругом по решению Законодательной встречи.", "Зона ответственности помогает четко определить, за что отвечает каждая Роль и какие решения она принимает."]
 }
 
-
-
-
 def generate_response(question):
     question = question.lower()
     for keyword, responses in keyword_responses.items():
@@ -41,17 +39,19 @@ def generate_response(question):
 
     return "Извините, не могу найти ответ на ваш вопрос."
 
+def handle_message(update, context):
+    user_input = update.message.text
+    response = generate_response(user_input)
+    context.bot.send_message(chat_id=update.message.chat_id, text=f"HR: {response}")
+
 def main():
-    print("Добро пожаловать в HR-чатбот! (Введите 'выход' для завершения)")
+    updater = Updater(token=bot_token, use_context=True)
+    dispatcher = updater.dispatcher
+    text_message_handler = MessageHandler(Filters.text & ~Filters.command, handle_message)
+    dispatcher.add_handler(text_message_handler)
 
-    while True:
-        user_input = input("Вы: ")
-        if user_input.lower() == 'выход':
-            print("Чат завершен.")
-            break
-
-        response = generate_response(user_input)
-        print(f"HR: {response}")
+    updater.start_polling()
+    updater.idle()
 
 if __name__ == "__main__":
     main()
