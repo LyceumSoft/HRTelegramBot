@@ -1,4 +1,4 @@
-import torch
+import torch    
 from transformers import BertTokenizer, BertForQuestionAnswering
 from transformers import AdamW, get_linear_schedule_with_warmup
 from torch.utils.data import DataLoader, TensorDataset
