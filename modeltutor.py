@@ -2,68 +2,73 @@ import torch
 from transformers import BertTokenizer, BertForQuestionAnswering, AdamW
 from torch.utils.data import DataLoader, TensorDataset
 
-texts = [
-    "Новый вопрос 1?",
-    "Новый вопрос 2?",
-    "Новый вопрос 3?",
+# Ваш исходный текст
+text = """
+Основная роль - = Роль, выполнением обязательств которой сотрудник занимается наибольшую часть времени в течение длительного периода. Основная Роль сотрудника может меняться.
+Круг = это объединение в группу нескольких Ролей (собрание Ролей) для реализации своего предназначения;
+Член круга, участник круга = это сотрудник, назначенный на Роль внутри Круга или на Роль Лид-линка Дочернего круга;
+Дочерний круг = это Круг, входящий (вложенный) в другой Круг;
+Родительский круг = вышестоящий Круг по отношению к Дочернему кругу;
+Сообщество, Небюджетируемый круг = временное или постоянное собрание Ролей, предназначенное для развития каких-либо идей, общих интересов и проводимое в свободное время;
+"""
+
+# Ваши вопросы и ответы
+questions = [
+    "Что такое основная роль?",
+    "Что представляет собой Круг?",
+    "Какие роли могут быть в Дочернем круге?",
+    "Что такое Родительский круг?",
 ]
-labels = [
-    "Правильный ответ 1",
-    "Правильный ответ 2",
-    "Правильный ответ 3",
+
+answers = [
+    "Основная Роль - это Роль, выполнением обязательств которой сотрудник занимается наибольшую часть времени в течение длительного периода. Основная Роль сотрудника может меняться.",
+    "Круг - это объединение в группу нескольких Ролей (собрание Ролей) для реализации своего предназначения;",
+    "В Дочернем круге могут быть различные роли, назначенные участникам этого Круга;",
+    "Родительский круг - это вышестоящий Круг по отношению к Дочернему кругу;",
 ]
+
 # Загрузка предобученной модели BERT и токенизатора
 model_name = "bert-base-uncased"
 tokenizer = BertTokenizer.from_pretrained(model_name)
 model = BertForQuestionAnswering.from_pretrained(model_name)
 
-# Чтение новых данных из файла
-with open("base.md", "r", encoding="utf-8") as file:
-    text = file.read()
+# Токенизация и предобработка текста и ответов
+text_tokens = tokenizer(text, return_tensors="pt", truncation=True, padding=True)
+question_tokens = tokenizer(questions, return_tensors="pt", truncation=True, padding=True)
+answer_tokens = tokenizer(answers, return_tensors="pt", truncation=True, padding=True)
 
-# Здесь предполагается, что вы подготовите новые вопросы и ответы из файла base.md
-# Замените texts и labels на ваши новые данные
+# Подготовка обучающих данных
+input_ids = text_tokens["input_ids"].repeat(len(questions), 1)
+attention_mask = text_tokens["attention_mask"].repeat(len(questions), 1)
+start_positions = answer_tokens["input_ids"][:, 1:].clone()  # Начальные позиции ответов
+end_positions = answer_tokens["input_ids"][:, :-1].clone()   # Конечные позиции ответов
 
-# Токенизация и предобработка новых данных
-input_ids = []
-attention_masks = []
-
-for text in texts:
-    encoded_text = tokenizer.encode_plus(
-        text,
-        add_special_tokens=True,
-        max_length=512,
-        padding='max_length',
-        return_tensors='pt',
-        truncation=True
-    )
-    input_ids.append(encoded_text['input_ids'])
-    attention_masks.append(encoded_text['attention_mask'])
-
-input_ids = torch.cat(input_ids, dim=0)
-attention_masks = torch.cat(attention_masks, dim=0)
-labels = torch.tensor(labels)
-
-# Создание нового датасета и загрузчика данных
-dataset = TensorDataset(input_ids, attention_masks, labels)
-batch_size = 4  # Выберите размер пакета, подходящий для ваших ресурсов
-dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+# Создание датасета
+dataset = TensorDataset(input_ids, attention_mask, start_positions, end_positions)
 
 # Определение функции потерь и оптимизатора
 criterion = torch.nn.CrossEntropyLoss()
 optimizer = AdamW(model.parameters(), lr=1e-5)
 
-# Обучение модели на новых данных
-num_epochs = 5  # Выберите количество эпох
+# Создание загрузчика данных
+batch_size = 4
+dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+
+# Обучение модели
+num_epochs = 5
 for epoch in range(num_epochs):
     for batch in dataloader:
-        input_ids_batch, attention_masks_batch, labels_batch = batch
         optimizer.zero_grad()
-        outputs = model(input_ids_batch, attention_mask=attention_masks_batch)
-        loss = criterion(outputs.logits, labels_batch)
+        input_ids, attention_mask, start_positions, end_positions = batch
+        outputs = model(input_ids, attention_mask=attention_mask)
+        start_logits, end_logits = outputs.logits.split(1, dim=-1)
+        start_logits = start_logits.squeeze(-1)
+        end_logits = end_logits.squeeze(-1)
+
+        loss = criterion(start_logits, start_positions) + criterion(end_logits, end_positions)
         loss.backward()
         optimizer.step()
 
-# Сохранение новой обученной модели
+# Сохранение обученной модели
 model.save_pretrained("trained_bert_model")
 tokenizer.save_pretrained("trained_bert_model")

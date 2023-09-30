@@ -15,6 +15,5 @@ while True:
     answer_start = torch.argmax(start_scores)
     answer_end = torch.argmax(end_scores) + 1
     answer = tokenizer.convert_tokens_to_string(tokenizer.convert_ids_to_tokens(inputs["input_ids"][0][answer_start:answer_end]))
-
     print("Ответ:")
     print(answer)
