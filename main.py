@@ -1,7 +1,7 @@
 import json
 import logging
 from telegram import Update
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, ConversationHandler, CallbackContext
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
 AIAPI_KEY = ""
 TOKEN = ""
 with open('config.json', 'r', encoding='utf-8') as f:
@@ -9,13 +9,22 @@ with open('config.json', 'r', encoding='utf-8') as f:
     AIAPI_KEY = text['AI_API_KEY']
     TOKEN = text['BOT_TOKEN']
 
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
+
+def start(update: Update, context: CallbackContext) -> None:
+    update.message.reply_text('Привет! Я ваш бот. Отправьте мне сообщение, и я его отвечу.')
+
+def echo(update: Update, context: CallbackContext) -> None:
+    user_message = update.message.text
+    update.message.reply_text(f'Вы написали: {user_message}')
+
 def main() -> None:
-    logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-                        level=logging.INFO)
-    updater = Updater(TOKEN)
+    updater = Updater(token=TOKEN, use_context=True)
     dispatcher = updater.dispatcher
-    start_handler = CommandHandler('start')
-    dispatcher.add_handler(start_handler)
+    dispatcher.add_handler(CommandHandler("start", start))
+    dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, echo))
+    updater.start_polling()
+    updater.idle()
+
 if __name__ == '__main__':
     main()
-
