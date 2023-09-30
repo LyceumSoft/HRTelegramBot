@@ -18,3 +18,4 @@ def main() -> None:
     dispatcher.add_handler(start_handler)
 if __name__ == '__main__':
     main()
+
