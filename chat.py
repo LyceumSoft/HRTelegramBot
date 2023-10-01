@@ -1,9 +1,12 @@
 import random
 import json
 import torch
+import telebot
 
 from model import NeuralNet
 from nltk_utils import bag_of_words, tokenize
+
+bot = telebot.TeleBot("6602521080:AAHzVn3CtxPzxBR7QEI8mneNJWfibhnqX7c")
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -25,15 +28,10 @@ model.load_state_dict(model_state)
 model.eval()
 
 bot_name = "HR"
-print("Давайте пообщаемся! (введите 'quit', чтобы выйти)")
-while True:
-    # sentence = "do you use credit cards?"
-    sentence = input("Вы: ")
-    if sentence == "quit":
-        break
-
-    sentence = tokenize(sentence)
-    X = bag_of_words(sentence, all_words)
+@bot.message_handler(content_types=['text'])
+def chat_bot_generate_message(message):
+    v1 = tokenize(message.text.strip())
+    X = bag_of_words(v1, all_words)
     X = X.reshape(1, X.shape[0])
     X = torch.from_numpy(X).to(device)
 
@@ -47,6 +45,10 @@ while True:
     if prob.item() > 0.75:
         for intent in intents['intents']:
             if tag == intent["tag"]:
-                print(f"{bot_name}: {random.choice(intent['responses'])}")
+                text = f"{random.choice(intent['responses'])}"
+                bot.send_message(message.chat.id, text)
     else:
-        print(f"{bot_name}: Я не понимаю вас...")
+        text = f"Простите, у меня недостаточно информации. Перефразируйте свой вопрос"
+        bot.send_message(message.chat.id, text)
+print("starting bot")
+bot.infinity_polling()
