@@ -44,13 +44,15 @@ def chat_bot_generate_message(message):
 
     probs = torch.softmax(output, dim=1)
     prob = probs[0][predicted.item()]
-    if prob.item() > 0.75:
+    if prob.item() > 0.85:
         for intent in intents['intents']:
             if tag == intent["tag"]:
                 text = f"{random.choice(intent['responses'])}"
                 bot.send_message(message.chat.id, f"Ваш запрос: {spell(message.text.strip())} \n\n" + text)
+                return
     else:
         text = f"Простите, у меня недостаточно информации. Перефразируйте свой вопрос"
         bot.send_message(message.chat.id, text)
+        return
 print("starting bot")
 bot.infinity_polling()
