@@ -2,9 +2,10 @@ import random
 import json
 import torch
 import telebot
-
 from model import NeuralNet
 from nltk_utils import bag_of_words, tokenize
+from autocorrect import Speller
+spell = Speller(lang='ru')
 
 bot = telebot.TeleBot("6602521080:AAHzVn3CtxPzxBR7QEI8mneNJWfibhnqX7c")
 
@@ -30,7 +31,8 @@ model.eval()
 bot_name = "HR"
 @bot.message_handler(content_types=['text'])
 def chat_bot_generate_message(message):
-    v1 = tokenize(message.text.strip())
+    print(spell(message.text.strip()))
+    v1 = tokenize(spell(message.text.strip()))
     X = bag_of_words(v1, all_words)
     X = X.reshape(1, X.shape[0])
     X = torch.from_numpy(X).to(device)
@@ -46,7 +48,7 @@ def chat_bot_generate_message(message):
         for intent in intents['intents']:
             if tag == intent["tag"]:
                 text = f"{random.choice(intent['responses'])}"
-                bot.send_message(message.chat.id, text)
+                bot.send_message(message.chat.id, f"Ваш запрос: {spell(message.text.strip())} \n\n" + text)
     else:
         text = f"Простите, у меня недостаточно информации. Перефразируйте свой вопрос"
         bot.send_message(message.chat.id, text)
